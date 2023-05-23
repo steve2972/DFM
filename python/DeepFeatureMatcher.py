@@ -9,8 +9,10 @@ import numpy as np
 import cv2 as cv
 import torch
 from torchvision import models, transforms
+from torchvision.models.vgg import VGG19_BN_Weights, VGG19_Weights
 from collections import namedtuple
 import matplotlib.pyplot as plt
+import logging
 
 class DeepFeatureMatcher(torch.nn.Module):
     
@@ -23,17 +25,17 @@ class DeepFeatureMatcher(torch.nn.Module):
         model = model.upper()
         
         if model == 'VGG19':
-            print('loading VGG19...')
+            logging.info('loading VGG19...')
             self.model = Vgg19(batch_normalization = False).to(self.device)
             self.padding_n = 16
-            print('model is loaded.')
+            logging.info('model is loaded.')
         elif model == 'VGG19_BN':
-            print('loading VGG19_BN...')
+            logging.info('loading VGG19_BN...')
             self.model = Vgg19(batch_normalization = True).to(self.device)
             self.padding_n = 16
-            print('model is loaded.')
+            logging.info('model is loaded.')
         else:
-            print('Error: model ' + model + ' is not supported!')
+            logging.info('Error: model ' + model + ' is not supported!')
             return
         
         self.enable_two_stage = enable_two_stage
@@ -221,9 +223,9 @@ class Vgg19(torch.nn.Module):
         super(Vgg19, self).__init__()
         
         if batch_normalization:
-            features = list(models.vgg19_bn(pretrained = True).features)[:47] # get vgg features
+            features = list(models.vgg19_bn(weights=VGG19_BN_Weights.DEFAULT).features)[:47] # get vgg features
         else:
-            features = list(models.vgg19(pretrained = True).features)[:33] # get vgg features
+            features = list(models.vgg19(weights=VGG19_Weights.DEFAULT).features)[:33] # get vgg features
         
         self.features = torch.nn.ModuleList(features).eval() # construct network in eval mode
         
@@ -262,8 +264,8 @@ def dense_feature_matching(map_A, map_B, ratio_th, bidirectional=True):
     matches, scores = mnn_ratio_matcher(d1, d2, ratio_th, bidirectional)
     
     # form a coordinate grid and convert matching indexes to image coordinates
-    y_A, x_A = torch.meshgrid(torch.arange(h_A), torch.arange(w_A))
-    y_B, x_B = torch.meshgrid(torch.arange(h_B), torch.arange(w_B))
+    y_A, x_A = torch.meshgrid(torch.arange(h_A), torch.arange(w_A), indexing='ij')
+    y_B, x_B = torch.meshgrid(torch.arange(h_B), torch.arange(w_B), indexing='ij')
     
     points_A = torch.stack((x_A.flatten()[matches[:, 0]], y_A.flatten()[matches[:, 0]]))
     points_B = torch.stack((x_B.flatten()[matches[:, 1]], y_B.flatten()[matches[:, 1]]))
